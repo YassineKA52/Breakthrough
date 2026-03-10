@@ -74,7 +74,7 @@ class Move
         int fr = 8 - fromRow;
         char tc = (char) ('A' + toCol);
         int tr = 8 - toRow;
-        return "" + fc + fr + "vs" + tc + tr;
+        return "" + fc + fr + "-" + tc + tr;
     }
 
     public static Move fromString(String s) {

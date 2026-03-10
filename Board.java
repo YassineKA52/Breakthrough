@@ -12,72 +12,68 @@ class Board {
     // Ne pas changer la signature de cette méthode
     public Board() {
         board = new Mark[SIZE][SIZE];
-        // Initialiser toutes les cases à EMPTY
         for (int i = 0; i < SIZE; i++) {
             for (int j = 0; j < SIZE; j++) {
                 board[i][j] = Mark.EMPTY;
             }
         }
 
-        // Placer les pièces noires
+        // Placer les pièces noires (rangées 0 et 1)
         for (int j = 0; j < SIZE; j++) {
             board[0][j] = Mark.BLACK;
             board[1][j] = Mark.BLACK;
         }   
 
-        // Placer les pièces rouges
+        // Placer les pièces rouges (rangées 6 et 7)
         for (int j = 0; j < SIZE; j++) {
             board[6][j] = Mark.RED;
             board[7][j] = Mark.RED;
         }
     }
 
-    // Place la pièce 'mark' sur le plateau, à la
-    // position spécifiée dans Move
-    //
     // Ne pas changer la signature de cette méthode
     public void play(Move m, Mark mark) {
-        board[m.getFromRow()][m.getFromCol()] = Mark.EMPTY; // Enlever la pièce de la position d'origine    
+        board[m.getFromRow()][m.getFromCol()] = Mark.EMPTY;
         board[m.getToRow()][m.getToCol()] = mark;
     }
 
-    // Annule un coup 
     public void unplay(Move m, Mark movedMark, Mark capturedMark) {
-        board[m.getFromRow()][m.getFromCol()] = movedMark; // Remettre la pièce à la position d'origine
-        board[m.getToRow()][m.getToCol()] = capturedMark; // Remettre la pièce capturée (ou EMPTY si aucune pièce n'a été capturée)
+        board[m.getFromRow()][m.getFromCol()] = movedMark;
+        board[m.getToRow()][m.getToCol()] = capturedMark;
     }
 
     public void unplay(Move m, Mark movedMark) {
         unplay(m, movedMark, Mark.EMPTY);
     }
 
-    // Retourne la liste des coups possibles (cases vides)
-    // Parcours de gauche à droite, de haut en bas
     public ArrayList<Move> getPossibleMoves(Mark mark) {
         ArrayList<Move> moves = new ArrayList<>();
-        int dir = (mark == Mark.BLACK) ? 1 : -1; // Direction de déplacement pour chaque joueur
+        int dir = (mark == Mark.BLACK) ? 1 : -1;
         for (int r = 0; r < SIZE; r++) {
             for (int c = 0; c < SIZE; c++) {
                 if (board[r][c] != mark) {
-                    continue; // Ignorer les cases qui ne contiennent pas la pièce du joueur
+                    continue;
                 }
 
                 int nr = r + dir;
 
-                if(nr < 0 || nr >= SIZE) {
-                    continue; // Ignorer les déplacements hors du plateau
+                if (nr < 0 || nr >= SIZE) {
+                    continue;
                 }
 
+                // Déplacement en avant (seulement si case vide)
                 if (board[nr][c] == Mark.EMPTY) {
-                    moves.add(new Move(r, c, nr, c)); // Déplacement vertical
+                    moves.add(new Move(r, c, nr, c));
                 }
 
+                // Diagonale gauche (vide OU capture adverse)
                 if (c - 1 >= 0 && board[nr][c - 1] != mark) {
-                    moves.add(new Move(r, c, nr, c - 1)); // Déplacement diagonal gauche
+                    moves.add(new Move(r, c, nr, c - 1));
                 }
 
+                // Diagonale droite (vide OU capture adverse)
                 if (c + 1 < SIZE && board[nr][c + 1] != mark) {
-                    moves.add(new Move(r, c, nr, c + 1)); // Déplacement diagonal droit
+                    moves.add(new Move(r, c, nr, c + 1));
                 }
             }
         }
@@ -88,15 +84,15 @@ class Board {
         return board[row][col];
     }
 
-    private boolean hasWon(Mark mark) {
+    public boolean hasWon(Mark mark) {
         if (mark == Mark.RED) {
             for (int j = 0; j < SIZE; j++) {
                 if (board[0][j] == Mark.RED) {
                     return true;
                 }
             }
-            return !hasPieces(Mark.BLACK); // Si les rouges n'ont plus de pièces, les rouges gagnent
-        } else { // mark == Mark.BLACK
+            return !hasPieces(Mark.BLACK);
+        } else {
             for (int j = 0; j < SIZE; j++) {
                 if (board[SIZE - 1][j] == Mark.BLACK) {
                     return true;
@@ -116,7 +112,6 @@ class Board {
         }
         return false;
     }
-
 
     public boolean isGameOver() {
         return hasWon(Mark.RED) || hasWon(Mark.BLACK);
@@ -142,33 +137,115 @@ class Board {
         return count;
     }
 
-    // retourne  100 pour une victoire
-    //          -100 pour une défaite
-    //           0   pour un match nul
+    // =============================================
+    // Fonction d'évaluation améliorée
+    // =============================================
     // Ne pas changer la signature de cette méthode
     public int evaluate(Mark mark) {
-        if (hasWon(mark)) {
-            return 100;
-        } 
+        Mark opponent = getOpponent(mark);
 
-        if (hasWon(getOpponent(mark))) {
-            return -100;
+        // Victoire / Défaite
+        if (hasWon(mark)) {
+            return 10000;
+        }
+        if (hasWon(opponent)) {
+            return -10000;
         }
 
         int score = 0;
+
+        int myPieces = 0;
+        int oppPieces = 0;
+        int myAdvancement = 0;
+        int oppAdvancement = 0;
+        int myCenterControl = 0;
+        int oppCenterControl = 0;
+        int myProtected = 0;
+        int oppProtected = 0;
+        int myBestRow = -1;  // Rangée la plus avancée pour mark
+        int oppBestRow = -1; // Rangée la plus avancée pour opponent
+
         for (int r = 0; r < SIZE; r++) {
             for (int c = 0; c < SIZE; c++) {
                 Mark cell = board[r][c];
-                if (cell == Mark.EMPTY) {
-                    continue;
-                } 
+                if (cell == Mark.EMPTY) continue;
+
                 if (cell == mark) {
-                    score += (mark == Mark.BLACK) ? r : (SIZE - 1 - r); // Plus la pièce est avancée, plus elle vaut
-                } else {
-                    score -= (cell == Mark.BLACK) ? r : (SIZE - 1 - r); // Plus la pièce adverse est avancée, plus elle pénalise
+                    myPieces++;
+
+                    // Avancement (progression vers la rangée adverse)
+                    int advancement = (mark == Mark.BLACK) ? r : (SIZE - 1 - r);
+                    // Bonus exponentiel pour les pièces proches de la victoire
+                    myAdvancement += advancement * advancement;
+
+                    // Meilleure rangée
+                    if (advancement > myBestRow) {
+                        myBestRow = advancement;
+                    }
+
+                    // Contrôle du centre (colonnes C, D, E, F = indices 2,3,4,5)
+                    if (c >= 2 && c <= 5) {
+                        myCenterControl += 2;
+                        if (c >= 3 && c <= 4) {
+                            myCenterControl += 1; // Bonus supplémentaire pour D, E
+                        }
+                    }
+
+                    // Protection : pièce protégée par une pièce amie derrière en diagonale
+                    int backRow = (mark == Mark.BLACK) ? r - 1 : r + 1;
+                    if (backRow >= 0 && backRow < SIZE) {
+                        if (c - 1 >= 0 && board[backRow][c - 1] == mark) {
+                            myProtected++;
+                        }
+                        if (c + 1 < SIZE && board[backRow][c + 1] == mark) {
+                            myProtected++;
+                        }
+                    }
+
+                } else { // cell == opponent
+                    oppPieces++;
+
+                    int advancement = (opponent == Mark.BLACK) ? r : (SIZE - 1 - r);
+                    oppAdvancement += advancement * advancement;
+
+                    if (advancement > oppBestRow) {
+                        oppBestRow = advancement;
+                    }
+
+                    if (c >= 2 && c <= 5) {
+                        oppCenterControl += 2;
+                        if (c >= 3 && c <= 4) {
+                            oppCenterControl += 1;
+                        }
+                    }
+
+                    int backRow = (opponent == Mark.BLACK) ? r - 1 : r + 1;
+                    if (backRow >= 0 && backRow < SIZE) {
+                        if (c - 1 >= 0 && board[backRow][c - 1] == opponent) {
+                            oppProtected++;
+                        }
+                        if (c + 1 < SIZE && board[backRow][c + 1] == opponent) {
+                            oppProtected++;
+                        }
+                    }
                 }
             }
         }
+
+        // Avantage matériel (nombre de pièces)
+        score += (myPieces - oppPieces) * 30;
+
+        // Avancement des pièces (bonus exponentiel)
+        score += (myAdvancement - oppAdvancement) * 2;
+
+        // Pièce la plus avancée (bonus pour la menace de victoire)
+        score += (myBestRow - oppBestRow) * 15;
+
+        // Contrôle du centre
+        score += (myCenterControl - oppCenterControl) * 3;
+
+        // Protection des pièces
+        score += (myProtected - oppProtected) * 5;
 
         return score;
     }
@@ -178,10 +255,10 @@ class Board {
         for (int r = 0; r < SIZE; r++) {
             for (int c = 0; c < SIZE; c++) {
                 switch (data[index++]) {
-                    case "R": // RED
+                    case "4": // RED
                         board[r][c] = Mark.RED; 
                         break;
-                    case "B": // BLACK
+                    case "2": // BLACK
                         board[r][c] = Mark.BLACK;
                         break;
                     default:
@@ -192,11 +269,10 @@ class Board {
         }
     }
 
-     @Override
-
+    @Override
     public String toString() {
         StringBuilder sb = new StringBuilder();
-        sb.append(" A B C D E F G H\n");
+        sb.append("  A B C D E F G H\n");
         for (int r = 0; r < SIZE; r++) {
             sb.append(8 - r).append(" ");
             for (int c = 0; c < SIZE; c++) {
@@ -212,5 +288,4 @@ class Board {
         }
         return sb.toString();
     }
-
 }
