@@ -1,7 +1,7 @@
 
 enum Mark{
-        X,
-        O,
+        RED,
+        BLACK,
         EMPTY
     }
 
