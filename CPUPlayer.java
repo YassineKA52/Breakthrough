@@ -1,38 +1,24 @@
 import java.util.ArrayList;
-import java.util.Comparator;
 
-// IMPORTANT: Il ne faut pas changer la signature des méthodes
-// de cette classe, ni le nom de la classe.
-// Vous pouvez par contre ajouter d'autres méthodes (ça devrait 
-// être le cas)
 class CPUPlayer {
 
-    // Contient le nombre de noeuds visités (le nombre
-    // d'appel à la fonction MinMax ou Alpha Beta)
-    // Normalement, la variable devrait être incrémentée
-    // au début de votre MinMax ou Alpha Beta.
     private int numExploredNodes;
-
-    // Le joueur MAX 
     private Mark cpuMark;
-    // Le joueur MIN 
     private Mark opponentMark;
 
-    private static final long TIME_LIMIT_MS = 4000;
+    // 3 secondes MAX pour être safe (serveur = 5s)
+    private static final long TIME_LIMIT_MS = 3000;
     private static final int MAX_DEPTH_LIMIT = 30;
-    // Vérifier le temps seulement tous les 2048 noeuds (évite l'overhead de System.currentTimeMillis)
     private static final int TIME_CHECK_INTERVAL = 2048;
 
     private long startTime;
     private boolean timeUp;
 
-    // Le constructeur reçoit en paramètre le joueur MAX
     public CPUPlayer(Mark cpu) {
         this.cpuMark = cpu;
         this.opponentMark = Board.getOpponent(cpu);
     }
 
-    // Ne pas changer cette méthode
     public int getNumOfExploredNodes() {
         return numExploredNodes;
     }
@@ -40,10 +26,6 @@ class CPUPlayer {
     // =============================================
     // MinMax avec limite de profondeur
     // =============================================
-
-    // Retourne la liste des coups possibles. Cette liste contient
-    // plusieurs coups possibles si et seulement si plusieurs coups
-    // ont le même score.
     public ArrayList<Move> getNextMoveMinMax(Board board) {
         numExploredNodes = 0;
         int maxDepth = 4;
@@ -103,9 +85,7 @@ class CPUPlayer {
         }
     }
 
-    // =============================================
-    // Alpha-Beta à profondeur fixe (pour comparaison avec MinMax)
-    // =============================================
+    // Alpha-Beta à profondeur fixe 
     public ArrayList<Move> getNextMoveABFixedDepth(Board board, int maxDepth) {
         numExploredNodes = 0;
         timeUp = false;
@@ -138,12 +118,8 @@ class CPUPlayer {
     }
 
     // =============================================
-    // Alpha-Beta avec Iterative Deepening + Gestion du temps
+    // Alpha-Beta avec Iterative Deepening
     // =============================================
-
-    // Retourne la liste des coups possibles. Cette liste contient
-    // plusieurs coups possibles si et seulement si plusieurs coups
-    // ont le même score.
     public ArrayList<Move> getNextMoveAB(Board board) {
         numExploredNodes = 0;
         startTime = System.currentTimeMillis();
@@ -155,20 +131,18 @@ class CPUPlayer {
             return new ArrayList<>();
         }
 
-        // Si un seul coup possible, le jouer directement
         if (possibleMoves.size() == 1) {
             ArrayList<Move> result = new ArrayList<>();
             result.add(possibleMoves.get(0));
             return result;
         }
 
-        // Tri initial des coups au niveau racine (move ordering)
-        sortMoves(possibleMoves, board);
+        // Tri initial au niveau racine
+        sortMovesRoot(possibleMoves, board);
 
         ArrayList<Move> bestMoves = new ArrayList<>();
-        bestMoves.add(possibleMoves.get(0)); // Fallback au cas où
+        bestMoves.add(possibleMoves.get(0));
 
-        // Iterative Deepening : on augmente la profondeur tant qu'on a du temps
         for (int depth = 1; depth <= MAX_DEPTH_LIMIT; depth++) {
             ArrayList<Move> currentBestMoves = new ArrayList<>();
             int currentBestScore = Integer.MIN_VALUE;
@@ -204,18 +178,15 @@ class CPUPlayer {
 
                 alpha = Math.max(alpha, currentBestScore);
 
-                // Si on a trouvé une victoire, pas besoin de chercher plus
                 if (currentBestScore >= 10000) {
                     System.out.println("  Victoire trouvee a profondeur " + depth);
                     return currentBestMoves;
                 }
             }
 
-            // Seulement mettre à jour si on a complété cette profondeur
             if (completedDepth && !currentBestMoves.isEmpty()) {
                 bestMoves = currentBestMoves;
 
-                // Mettre le meilleur coup en premier pour la prochaine itération
                 Move bestMove = currentBestMoves.get(0);
                 possibleMoves.remove(bestMove);
                 possibleMoves.add(0, bestMove);
@@ -225,14 +196,11 @@ class CPUPlayer {
                         ", coup=" + bestMoves.get(0) + " (" + numExploredNodes + " noeuds)");
             }
 
-            if (timeUp) {
-                break;
-            }
+            if (timeUp) break;
 
-            // Ne pas commencer une nouvelle profondeur si on a utilisé plus de la moitié du temps
             long elapsed = System.currentTimeMillis() - startTime;
             if (elapsed > TIME_LIMIT_MS / 2) {
-                System.out.println("  Arret: temps ecoule a " + elapsed + "ms, profondeur max atteinte = " + depth);
+                System.out.println("  Arret: " + elapsed + "ms, profondeur max = " + depth);
                 break;
             }
         }
@@ -243,11 +211,8 @@ class CPUPlayer {
     private int alphaBeta(Board board, int depth, boolean isMaximizing, int alpha, int beta) {
         numExploredNodes++;
 
-        // Vérifier le temps périodiquement (tous les 2048 noeuds)
         if ((numExploredNodes & (TIME_CHECK_INTERVAL - 1)) == 0) {
-            if (isTimeUp()) {
-                return 0;
-            }
+            if (isTimeUp()) return 0;
         }
 
         if (depth == 0 || board.isGameOver()) {
@@ -268,10 +233,7 @@ class CPUPlayer {
 
                 bestScore = Math.max(bestScore, score);
                 alpha = Math.max(alpha, bestScore);
-
-                if (beta <= alpha) {
-                    break;
-                }
+                if (beta <= alpha) break;
             }
             return bestScore;
         } else {
@@ -288,53 +250,43 @@ class CPUPlayer {
 
                 bestScore = Math.min(bestScore, score);
                 beta = Math.min(beta, bestScore);
-
-                if (beta <= alpha) {
-                    break;
-                }
+                if (beta <= alpha) break;
             }
             return bestScore;
         }
     }
 
     // =============================================
-    // Move Ordering — trier les coups pour un meilleur élagage
-    // (appliqué seulement au niveau racine)
+    // Move Ordering — seulement au niveau racine, rapide
     // =============================================
-    private void sortMoves(ArrayList<Move> moves, Board board) {
-        moves.sort(new Comparator<Move>() {
-            @Override
-            public int compare(Move a, Move b) {
-                return scoreMoveOrder(b, board) - scoreMoveOrder(a, board);
-            }
-        });
+    private void sortMovesRoot(ArrayList<Move> moves, Board board) {
+        moves.sort((a, b) -> scoreMoveOrder(b, board) - scoreMoveOrder(a, board));
     }
 
     private int scoreMoveOrder(Move move, Board board) {
-        int score = 0;
+        Mark mover = board.getMark(move.getFromRow(), move.getFromCol());
         Mark target = board.getMark(move.getToRow(), move.getToCol());
 
-        // Captures en premier (priorité haute)
-        if (target != Mark.EMPTY) {
-            score += 100;
+        // 1. Coups gagnants
+        if (mover == Mark.RED && move.getToRow() == 0) return 10000;
+        if (mover == Mark.BLACK && move.getToRow() == Board.SIZE - 1) return 10000;
+
+        int score = 0;
+
+        // 2. Captures — capturer un pion avancé ou infiltré = très prioritaire
+        if (target != Mark.EMPTY && target != mover) {
+            score += 500;
+            int targetAdv = (target == Mark.BLACK) ? move.getToRow() : (Board.SIZE - 1 - move.getToRow());
+            score += targetAdv * 40; // Plus il est avancé, plus on veut le capturer
         }
 
-        // Coups qui avancent vers la rangée de victoire
-        Mark mover = board.getMark(move.getFromRow(), move.getFromCol());
-        if (mover == Mark.RED) {
-            // Rouge avance vers le haut (row 0)
-            score += (Board.SIZE - 1 - move.getToRow()) * 5;
-            // Bonus si on atteint la dernière rangée
-            if (move.getToRow() == 0) score += 500;
-        } else if (mover == Mark.BLACK) {
-            // Noir avance vers le bas (row 7)
-            score += move.getToRow() * 5;
-            if (move.getToRow() == Board.SIZE - 1) score += 500;
-        }
+        // 3. Avancement
+        int myAdv = (mover == Mark.BLACK) ? move.getToRow() : (Board.SIZE - 1 - move.getToRow());
+        score += myAdv * 8;
 
-        // Préférer les coups au centre
+        // 4. Centre
         int centerDist = Math.abs(move.getToCol() - 3);
-        score += (4 - centerDist);
+        score += (4 - centerDist) * 2;
 
         return score;
     }

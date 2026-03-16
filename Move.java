@@ -1,5 +1,3 @@
-
-
 class Move
 {
     private int fromRow;
@@ -82,7 +80,7 @@ class Move
             return null;
         }
 
-        s = s.trim().toUpperCase().replace("-", "");
+        s = s.trim().toUpperCase().replace(" ", "").replace("-", "");
 
         if (s.length() != 4) {
             return null;
@@ -105,4 +103,3 @@ class Move
     }
     
 }
-  

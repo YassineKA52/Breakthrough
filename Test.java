@@ -23,25 +23,23 @@ class Test {
         Board board = new Board();
         int depth = 4; // Même profondeur pour les deux
 
-        // MinMax (profondeur fixe = 4)
+        // MinMax 
         CPUPlayer cpuMM = new CPUPlayer(Mark.RED);
         long startMM = System.currentTimeMillis();
         ArrayList<Move> movesMM = cpuMM.getNextMoveMinMax(board);
         long elapsedMM = System.currentTimeMillis() - startMM;
 
-        // Alpha-Beta (profondeur fixe = 4, sans iterative deepening)
+        // Alpha-Beta 
         CPUPlayer cpuAB = new CPUPlayer(Mark.RED);
         long startAB = System.currentTimeMillis();
         ArrayList<Move> movesAB = cpuAB.getNextMoveABFixedDepth(board, depth);
         long elapsedAB = System.currentTimeMillis() - startAB;
 
         System.out.println("MinMax (profondeur " + depth + ") :");
-        System.out.println("  Coup(s)  : " + movesToString(movesMM));
         System.out.println("  Noeuds   : " + cpuMM.getNumOfExploredNodes());
         System.out.println("  Temps    : " + elapsedMM + " ms");
 
         System.out.println("Alpha-Beta (profondeur " + depth + ") :");
-        System.out.println("  Coup(s)  : " + movesToString(movesAB));
         System.out.println("  Noeuds   : " + cpuAB.getNumOfExploredNodes());
         System.out.println("  Temps    : " + elapsedAB + " ms\n");
     }
